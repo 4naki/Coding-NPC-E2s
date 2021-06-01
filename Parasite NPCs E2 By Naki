@@ -1,0 +1,191 @@
+@name Parasite NPCs E2
+#arrays
+@persist BeaconArray:array InfectionArray:array InfectionArray2:array InfectionArray3:array
+
+#health
+@persist BeaconHP BeaconHPSTG1 BeaconHPSTG2 BeaconHPSTG3 
+
+#entity info
+@persist InfectionModel:string InfectionMaterial:string InfectionColor:vector BeaconModel:string MaxInfPerBeacon InfectionSpawnChance TimerForce 
+
+#misc
+@persist FindTick RemRand Stage FirstStageEnemySpawnChance SecondStageEnemySpawnChance FinalStageEnemySpawnChance NextStageTime SpawnRate StageMaxOffset HoloScale StageMax BeaconSpawnChance CanSpawnMore CanSpawnBlock
+#debug
+@outputs BeaconHP BeaconHPSTG1 BeaconHPSTG2 BeaconHPSTG3 BeaconArray:array InfectionArray:array InfectionArray2:array InfectionArray3:array MaxInfPerBeacon InfectionSpawnChance RemRand Stage TimerForce
+runOnDmg(1)
+interval(500)
+
+if(first()){
+    BeaconHPSTG1=60
+    BeaconHPSTG2=BeaconHPSTG1*1.8
+    BeaconHPSTG3=BeaconHPSTG2*2
+    
+    BeaconHP=BeaconHPSTG1
+    
+    InfectionModel="models/props_debris/concrete_spawnplug001a.mdl"
+    InfectionMaterial="models/flesh"
+    InfectionColor=vec(255,255,255)
+    InfectionSpawnChance=10
+    
+    BeaconModel="models/sprops/cuboids/height12/size_1/cube_12x84x12.mdl"
+    MaxInfPerBeacon=5
+    StageMaxOffset=125
+    
+    FirstStageEnemySpawnChance=30
+    SecondStageEnemySpawnChance=20
+    FinalStageEnemySpawnChance=10
+    
+    HoloScale=1
+    
+    SpawnRate=7
+    
+    BeaconSpawnChance=100
+    
+    FindTick=1000
+    timer("find",FindTick)
+    timer("check",FindTick*5)
+    timer("spawn",SpawnRate*1000)
+}
+
+NextStageTime=randint(30,60)
+
+if(clk("find")){
+    findExcludeClass("player")
+    findIncludeClass("prop_*")
+    findByModel(BeaconModel)
+    BeaconArray=findToArray()
+    timer("find",FindTick)
+}
+foreach(BI:number, BE:entity = BeaconArray){
+    
+    if(BE:owner()==owner()){
+        if(TimerForce==0){
+            timer("stageupstart",100)
+        }
+        if(clk("stageupstart")){
+            timer("nextStage",1000)
+            TimerForce=1
+        }
+        if(clk("nextStage")){
+            if(Stage==0){
+                HoloScale=1
+                MaxInfPerBeacon=5
+                StageMaxOffset=125
+                BeaconHP=BeaconHP
+                Stage=1
+                StageMax=FirstStageEnemySpawnChance
+            }elseif(Stage==1){
+                HoloScale=1.75
+                MaxInfPerBeacon=10
+                StageMaxOffset=125*2
+                BeaconHP=BeaconHPSTG2
+                Stage=2
+                StageMax=SecondStageEnemySpawnChance
+            }elseif(Stage==2){
+                HoloScale=1.75+0.75
+                MaxInfPerBeacon=20
+                StageMaxOffset=125*4
+                BeaconHP=BeaconHPSTG3
+                Stage=3
+                StageMax=FinalStageEnemySpawnChance
+                CanSpawnMore=1
+            }
+            timer("nextStage",NextStageTime*1000)
+        }
+        
+        BE:propFreeze(1)
+        BE:setAlpha(0)
+        BE:setNoCollideAll()
+        holoCreate(BI)
+        holoModel(BI, "models/props_foliage/tree_poplar_01.mdl")
+        holoMaterial(BI, InfectionMaterial)
+        holoColor(BI, InfectionColor)
+        holoScale(BI, vec(HoloScale)*0.1)
+        
+        holoPos(BI, BE:toWorld(vec(84/2,0,0)))
+        holoAng(BI, BE:toWorld(ang(-90,0,0)))
+        RVec=randvec(BE:toWorld(vec(0,StageMaxOffset,StageMaxOffset)),BE:toWorld(vec(0,-StageMaxOffset,-StageMaxOffset)))
+        holoCreate(BI+200)
+        holoPos(BI+200, RVec+vec(0,0,0))
+        holoAlpha(BI+200,0)
+        
+        findExcludeClass("player")
+        findIncludeClass("prop_*")
+        findIncludeModel(InfectionModel)
+        findInSphere(BE:pos(),195*2)
+        InfectionArray=findToArray()
+        
+        Count=InfectionArray:count()
+        
+        if(clk("spawn")){
+        foreach(Index:number, Entity:entity = InfectionArray){
+            
+            if(CanSpawnMore==1){
+                if(CanSpawnBlock==0){
+                SpawnRandint=randint(1,BeaconSpawnChance)
+                if(SpawnRandint==BeaconSpawnChance/2){
+                    CanSpawnBlock=1
+                    NewBeacon=propSpawn(BeaconModel,BE:angles(),1)
+                    NewBeacon:propFreeze(1)
+                    NewBeacon:setAlpha(0)
+                    NewBeacon:setNoCollideAll()
+                    NewBeacon:setPos(Entity:pos()+vec(0,0,+47))
+                }
+                }
+            }
+            
+            
+            RandNPCSpawn=randint(1,StageMax)
+            if(RandNPCSpawn==StageMax/2){
+                if(Stage==1){
+                    npcSpawn("npc_headcrab_fast", Entity:pos()+vec(0,0,5))
+                }
+                if(Stage==2){
+                RandNPC=randint(1,2)
+                if(RandNPC==1){
+                    npcSpawn("npc_headcrab_fast", Entity:pos()+vec(0,0,5))
+                }
+                if(RandNPC==2){
+                    npcSpawn("npc_headcrab_black", Entity:pos()+vec(0,0,5))
+                }
+                }
+                if(Stage==3){
+                RandNPC=randint(1,3)
+                if(RandNPC==1){
+                    npcSpawn("npc_headcrab_fast", Entity:pos()+vec(0,0,5))
+                }
+                if(RandNPC==2){
+                    npcSpawn("npc_poisonzombie", Entity:pos()+vec(0,0,5))
+                }
+                if(RandNPC==3){
+                    npcSpawn("npc_fastzombie", Entity:pos()+vec(0,0,5))
+                }
+                }
+            }
+        }
+        timer("spawn",SpawnRate*1000)
+    }
+        
+        
+        if(Count<MaxInfPerBeacon){
+            R=randint(1,InfectionSpawnChance*2)
+            if(R==InfectionSpawnChance){
+                Prop=propSpawn(InfectionModel,ang(0,randint(-180,180),0),1)
+                Prop:setMaterial(InfectionMaterial)
+                Prop:setColor(InfectionColor)
+                Prop:setPos(RVec+vec(0,0,-47))
+            }
+        }
+        if(dmgClk()){
+            if(lastDamageVictim()==BE){
+                print("damage taken this much: "+lastDamage():getDamage())
+                BeaconHP=BeaconHP-lastDamage():getDamage()
+            }
+        }
+        if(BeaconHP<1){
+            BE:propBreak()
+            holoDelete(BI)
+            holoDelete(BI+200)
+        }
+    }
+}
